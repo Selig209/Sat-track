@@ -1,9 +1,16 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { predictPass } from '../utils/passPredictor';
 import { checkWeather } from '../utils/weather';
 import { getInfo } from '../data/satelliteInfo';
 import { reverseGeocode } from '../utils/reverseGeocode';
 import * as satellite from 'satellite.js';
+
+// Detect mobile - must match SatelliteLayer.jsx
+const isMobile = typeof window !== 'undefined' && (
+    /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent) ||
+    window.innerWidth < 768
+);
+const MAX_SATELLITES_MOBILE = 1000;
 
 const Dashboard = ({ selectedSat, setSelectedSat, satellites, satMetadata = {}, onFilterVisible, isLoading, onRetryLoad }) => {
     const [passInfo, setPassInfo] = useState(null);
@@ -76,9 +83,18 @@ const Dashboard = ({ selectedSat, setSelectedSat, satellites, satMetadata = {}, 
         }
     }, [selectedSat, userLocation]);
 
+    // Limit satellites on mobile to match SatelliteLayer rendering
+    const limitedSatellites = useMemo(() => {
+        if (!satellites) return [];
+        if (isMobile && satellites.length > MAX_SATELLITES_MOBILE) {
+            return satellites.slice(0, MAX_SATELLITES_MOBILE);
+        }
+        return satellites;
+    }, [satellites]);
+
     // Visible Now Counter - also tracks which satellites are visible
     useEffect(() => {
-        if (!satellites || satellites.length === 0) {
+        if (!limitedSatellites || limitedSatellites.length === 0) {
             setVisibleCount(0);
             setVisibleSatellites([]);
             return;
@@ -86,7 +102,7 @@ const Dashboard = ({ selectedSat, setSelectedSat, satellites, satMetadata = {}, 
         const calculateVisible = () => {
             const now = new Date();
             const visible = [];
-            satellites.forEach(sat => {
+            limitedSatellites.forEach(sat => {
                 try {
                     const satrec = satellite.twoline2satrec(sat.line1, sat.line2);
                     const positionAndVelocity = satellite.propagate(satrec, now);
@@ -105,7 +121,9 @@ const Dashboard = ({ selectedSat, setSelectedSat, satellites, satMetadata = {}, 
                         const lookAngles = satellite.ecfToLookAngles(observerGd, positionEcf);
                         const elevationDeg = lookAngles.elevation * (180 / Math.PI);
 
-                        if (elevationDeg > 10) {
+                        // Include satellites above horizon (0°)
+                        // Previously was 10° which excluded low-elevation satellites
+                        if (elevationDeg > 0) {
                             visible.push({ ...sat, elevation: elevationDeg.toFixed(1) });
                         }
                     }
@@ -120,7 +138,7 @@ const Dashboard = ({ selectedSat, setSelectedSat, satellites, satMetadata = {}, 
         calculateVisible();
         const interval = setInterval(calculateVisible, 2000);
         return () => clearInterval(interval);
-    }, [satellites, userLocation]);
+    }, [limitedSatellites, userLocation]);
 
     // Notify parent when filter changes (either by location or by category)
     useEffect(() => {
