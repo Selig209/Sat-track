@@ -1,16 +1,71 @@
-# React + Vite
+# 🛰️ Sat-Track
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+Real-time 3D satellite tracker that visualizes 2,000+ satellites orbiting Earth in your browser.
 
-Currently, two official plugins are available:
+![Sat-Track Demo](https://img.shields.io/badge/Live-Demo-brightgreen)
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Babel](https://babeljs.io/) (or [oxc](https://oxc.rs) when used in [rolldown-vite](https://vite.dev/guide/rolldown)) for Fast Refresh
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/) for Fast Refresh
+## ✨ Features
 
-## React Compiler
+- 🌍 **Real-Time Tracking** — Tracks 2,000+ satellites with live positions updated every second
+- 📍 **Location-Aware** — Detects your location and shows satellites visible from your sky
+- 🔭 **Pass Predictions** — Calculates when satellites will fly over your location
+- 📊 **Orbital Data** — Displays apogee, perigee, inclination, and orbital period
+- 🔍 **Search & Filter** — Filter by satellite type (ISS, Starlink, GPS, Weather, etc.)
+- 📱 **Mobile Responsive** — Works on desktop, tablet, and mobile devices
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
+## 🛠️ Tech Stack
 
-## Expanding the ESLint configuration
+- **Frontend:** React 19 + Vite
+- **3D Rendering:** Three.js, React-Three-Fiber, Drei
+- **Orbital Mechanics:** satellite.js (SGP4/SDP4 propagation)
+- **Data Source:** CelesTrak GP API (live TLE data)
+- **Geocoding:** OpenStreetMap Nominatim
 
-If you are developing a production application, we recommend using TypeScript with type-aware lint rules enabled. Check out the [TS template](https://github.com/vitejs/vite/tree/main/packages/create-vite/template-react-ts) for information on how to integrate TypeScript and [`typescript-eslint`](https://typescript-eslint.io) in your project.
+## 🚀 Getting Started
+
+```bash
+# Clone the repository
+git clone https://github.com/Selig209/Sat-track.git
+cd Sat-track
+
+# Install dependencies
+npm install
+
+# Start development server
+npm run dev
+
+# Build for production
+npm run build
+```
+
+## 🔬 How It Works
+
+Satellites are tracked using **Two-Line Element (TLE)** data from CelesTrak. The app uses the **SGP4 propagation algorithm** to calculate real-time positions, transforming coordinates from:
+
+1. **ECI (Earth-Centered Inertial)** — Reference frame that doesn't rotate with Earth
+2. **ECF (Earth-Centered Fixed)** — Rotates with Earth
+3. **Geodetic** — Latitude, longitude, altitude
+
+This allows accurate positioning of satellites on the 3D globe.
+
+## 📸 Screenshots
+
+*Coming soon*
+
+## 🤝 Contributing
+
+Contributions are welcome! Feel free to open issues or submit pull requests.
+
+## 📝 License
+
+MIT License
+
+## 👤 Author
+
+**Selig209**
+
+- GitHub: [@Selig209](https://github.com/Selig209)
+
+---
+
+⭐ Star this repo if you find it useful!
