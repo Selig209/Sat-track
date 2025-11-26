@@ -205,8 +205,8 @@ const Dashboard = ({ selectedSat, setSelectedSat, satellites, satMetadata = {}, 
                 pointerEvents: 'auto'
             }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '15px' }}>
-                    <img src="/logo.png" alt="Logo" style={{ width: '30px' }} onError={(e) => e.target.style.display = 'none'} />
-                    <h2 style={{ margin: 0, fontSize: '1.2em' }}>Satellite Tracker 3D</h2>
+                    <img src="/logo.png" alt="Logo" style={{ width: '30px', borderRadius: '6px' }} onError={(e) => e.target.style.display = 'none'} />
+                    <h2 style={{ margin: 0, fontSize: '1.2em' }}>Sat-Track</h2>
                 </div>
 
                 <div style={{
