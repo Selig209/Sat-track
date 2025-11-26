@@ -504,20 +504,21 @@ const Dashboard = ({ selectedSat, setSelectedSat, satellites, satMetadata = {}, 
                     right: isMobile ? '0' : '20px',
                     left: isMobile ? '0' : 'auto',
                     background: isMobile 
-                        ? 'linear-gradient(to top, rgba(0,0,0,0.98), rgba(0,0,0,0.95))' 
+                        ? 'linear-gradient(to top, rgba(0,0,0,0.98), rgba(0,0,0,0.90))' 
                         : 'rgba(0, 0, 0, 0.95)',
-                    padding: isMobile ? '12px 16px 20px 16px' : '20px',
-                    borderRadius: isMobile ? '20px 20px 0 0' : '10px',
+                    padding: isMobile ? '10px 14px 16px 14px' : '20px',
+                    borderRadius: isMobile ? '16px 16px 0 0' : '10px',
                     width: isMobile ? '100%' : '300px',
                     maxWidth: isMobile ? 'none' : '320px',
                     color: 'white',
                     fontFamily: 'Arial, sans-serif',
                     pointerEvents: 'auto',
-                    maxHeight: isMobile ? '50vh' : 'calc(100vh - 60px)',
+                    maxHeight: isMobile ? '35vh' : 'calc(100vh - 60px)', // Reduced from 50vh to 35vh
                     overflowY: 'auto',
                     zIndex: 250,
                     boxSizing: 'border-box',
-                    boxShadow: isMobile ? '0 -4px 20px rgba(0,0,0,0.5)' : 'none'
+                    boxShadow: isMobile ? '0 -4px 20px rgba(0,0,0,0.5)' : 'none',
+                    fontSize: isMobile ? '0.9em' : '1em' // Slightly smaller text on mobile
                 }}>
                     {/* Drag handle indicator for mobile */}
                     {isMobile && (

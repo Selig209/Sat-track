@@ -222,13 +222,13 @@ const SkyViewer = ({ selectedSat, setSelectedSat, hoveredSat, setHoveredSat, sat
                         />
                     </Suspense>
                     <OrbitControls 
-                        enablePan={true}
+                        enablePan={!isMobile} // Disable pan on mobile to avoid confusion
                         panSpeed={0.8}
-                        rotateSpeed={0.6}
-                        zoomSpeed={1.2}
-                        minDistance={1.3}
-                        maxDistance={15}
-                        enableDamping={!isMobile} // Disable damping on mobile for better performance
+                        rotateSpeed={isMobile ? 0.4 : 0.6} // Slower rotation on mobile
+                        zoomSpeed={isMobile ? 0.8 : 1.2}
+                        minDistance={1.2}
+                        maxDistance={isMobile ? 25 : 15} // Allow more zoom out on mobile to see all satellites
+                        enableDamping={!isMobile}
                         dampingFactor={0.05}
                     />
             </Canvas>

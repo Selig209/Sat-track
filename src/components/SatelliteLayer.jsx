@@ -11,7 +11,8 @@ const isMobile = typeof window !== 'undefined' && (
 );
 
 // Limit satellites on mobile to prevent memory issues
-const MAX_SATELLITES_MOBILE = 500;
+// Increased to 1000 for better coverage while staying performant
+const MAX_SATELLITES_MOBILE = 1000;
 
 const SatelliteLayer = ({ selectedSat, setSelectedSat, setHoveredSat, satellites, highlightedSatellites }) => {
     const meshRef = useRef();
@@ -236,7 +237,13 @@ const SatelliteLayer = ({ selectedSat, setSelectedSat, setHoveredSat, satellites
 
             {/* Orbit Path Line - bright yellow/orange to stand out */}
             {orbitPath && orbitPath.length > 0 && (
-                <Line points={orbitPath} color="#ffcc00" lineWidth={2.5} />
+                <Line 
+                    points={orbitPath} 
+                    color="#ffcc00" 
+                    lineWidth={isMobile ? 1.5 : 2.5} // Thinner on mobile for performance, but still visible
+                    transparent
+                    opacity={0.9}
+                />
             )}
         </group>
     );
