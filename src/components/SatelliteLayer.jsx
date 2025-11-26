@@ -44,11 +44,13 @@ const SatelliteLayer = ({ selectedSat, setSelectedSat, setHoveredSat, satellites
     }), []);
 
     // Calculate Orbit Path when selectedSat changes
+    // Shows orbital plane - uses ECI->ECEF with frozen GMST for smooth ellipse
     useEffect(() => {
         if (selectedSat) {
             const satrec = satellite.twoline2satrec(selectedSat.line1, selectedSat.line2);
             const points = [];
             const now = new Date();
+            const gmstNow = satellite.gstime(now);
             const periodMinutes = (2 * Math.PI) / satrec.no;
             const step = periodMinutes > 1000 ? 5 : 0.5;
 
@@ -58,12 +60,20 @@ const SatelliteLayer = ({ selectedSat, setSelectedSat, setHoveredSat, satellites
                 const positionEci = positionAndVelocity.position;
 
                 if (positionEci && typeof positionEci !== 'boolean') {
-                    const scale = 1 / 6371;
-                    points.push(new THREE.Vector3(
-                        positionEci.x * scale,
-                        positionEci.y * scale,
-                        positionEci.z * scale
-                    ));
+                    // Use frozen GMST (current time) for entire orbit
+                    // This gives a clean ellipse in current Earth-fixed frame
+                    const positionGd = satellite.eciToGeodetic(positionEci, gmstNow);
+                    
+                    const lat = positionGd.latitude;
+                    const lon = positionGd.longitude;
+                    const alt = positionGd.height;
+                    
+                    const radius = 1 + (alt / 6371);
+                    const x = radius * Math.cos(lat) * Math.cos(lon);
+                    const y = radius * Math.sin(lat);
+                    const z = radius * Math.cos(lat) * Math.sin(lon);
+                    
+                    points.push(new THREE.Vector3(x, y, -z));
                 }
             }
 
@@ -89,6 +99,9 @@ const SatelliteLayer = ({ selectedSat, setSelectedSat, setHoveredSat, satellites
         const now = new Date();
         const dummy = new THREE.Object3D();
         
+        // Get GMST for ECI to geodetic conversion
+        const gmst = satellite.gstime(now);
+        
         // Check if we have an active highlight filter
         const hasActiveFilter = highlightedNames !== null && highlightedNames.size > 0;
 
@@ -97,16 +110,24 @@ const SatelliteLayer = ({ selectedSat, setSelectedSat, setHoveredSat, satellites
             const positionEci = positionAndVelocity.position;
 
             if (positionEci && typeof positionEci !== 'boolean') {
-                const scale = 1 / 6371;
-                const x = positionEci.x * scale;
-                const y = positionEci.y * scale;
-                const z = positionEci.z * scale;
+                // Convert ECI to geodetic (lat/lon/alt) then to 3D position on globe
+                const positionGd = satellite.eciToGeodetic(positionEci, gmst);
+                
+                const lat = positionGd.latitude;  // radians
+                const lon = positionGd.longitude; // radians
+                const alt = positionGd.height;    // km
+                
+                // Convert geodetic to 3D position (radius = 1 for Earth surface)
+                const radius = 1 + (alt / 6371); // Scale altitude
+                const x = radius * Math.cos(lat) * Math.cos(lon);
+                const y = radius * Math.sin(lat);
+                const z = radius * Math.cos(lat) * Math.sin(lon);
 
                 const isSelected = selectedSat && selectedSat.name === sat.name;
                 const isHovered = hoveredIndex === i;
                 const isHighlighted = hasActiveFilter ? highlightedNames.has(sat.name) : true;
 
-                dummy.position.set(x, y, z);
+                dummy.position.set(x, y, -z);  // Flip Z for correct orientation
 
                 // Scale based on state
                 let satScale = 1;

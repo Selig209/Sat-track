@@ -52,27 +52,17 @@ const Earth = () => {
         '/textures/earth_clouds.png',
     ]);
 
-    // Real-time Earth rotation based on actual time
-    // Earth completes one rotation in ~24 hours (86400 seconds)
-    // We sync the Earth's rotation to actual UTC time
+    // Earth rotation - fixed relative to satellites (satellites use geodetic coordinates)
+    // The sun direction in the shader handles day/night visualization
     useFrame(() => {
+        // Earth stays fixed - satellites are positioned using real-time geodetic coords
+        // which already account for Earth's rotation
         if (meshRef.current) {
-            const now = new Date();
-            // Calculate Earth rotation angle based on current UTC time
-            // 360 degrees per day = 0.0041667 degrees per second
-            // At 00:00 UTC, the prime meridian (0° longitude) faces the sun direction
-            const secondsInDay = now.getUTCHours() * 3600 + now.getUTCMinutes() * 60 + now.getUTCSeconds() + now.getUTCMilliseconds() / 1000;
-            const rotationAngle = (secondsInDay / 86400) * Math.PI * 2;
-            
-            // Offset so that the visible side aligns with the sun direction
-            meshRef.current.rotation.y = -rotationAngle + Math.PI;
+            meshRef.current.rotation.y = 0;
         }
         if (cloudsRef.current) {
-            // Clouds drift slightly faster than Earth (weather patterns)
-            const now = new Date();
-            const secondsInDay = now.getUTCHours() * 3600 + now.getUTCMinutes() * 60 + now.getUTCSeconds();
-            const rotationAngle = (secondsInDay / 86400) * Math.PI * 2;
-            cloudsRef.current.rotation.y = -rotationAngle * 1.02 + Math.PI;
+            // Slight cloud drift for realism
+            cloudsRef.current.rotation.y += 0.00002;
         }
     });
 
@@ -110,7 +100,7 @@ const Earth = () => {
 const SkyViewer = ({ selectedSat, setSelectedSat, hoveredSat, setHoveredSat, satellites, highlightedSatellites }) => {
     return (
         <div style={{ width: '100vw', height: '100vh', position: 'relative' }}>
-            <Canvas camera={{ position: [0, 0, 5] }}>
+            <Canvas camera={{ position: [0, 0, 4], fov: 50 }}>
                 <ambientLight intensity={0.1} />
                 <directionalLight position={[10, 10, 5]} intensity={1.5} />
                 <Stars radius={100} depth={50} count={5000} factor={4} saturation={0} fade speed={1} />
@@ -122,7 +112,16 @@ const SkyViewer = ({ selectedSat, setSelectedSat, hoveredSat, setHoveredSat, sat
                     satellites={satellites}
                     highlightedSatellites={highlightedSatellites}
                 />
-                <OrbitControls enablePan={false} minDistance={1.5} maxDistance={10} />
+                <OrbitControls 
+                    enablePan={true}
+                    panSpeed={0.8}
+                    rotateSpeed={0.6}
+                    zoomSpeed={1.2}
+                    minDistance={1.3}
+                    maxDistance={15}
+                    enableDamping={true}
+                    dampingFactor={0.05}
+                />
             </Canvas>
 
             {/* Tooltip Overlay */}

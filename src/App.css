@@ -1,42 +1,72 @@
+/* Full screen 3D viewer */
 #root {
-  max-width: 1280px;
-  margin: 0 auto;
-  padding: 2rem;
-  text-align: center;
+  width: 100vw;
+  height: 100vh;
+  margin: 0;
+  padding: 0;
+  overflow: hidden;
 }
 
-.logo {
-  height: 6em;
-  padding: 1.5em;
-  will-change: filter;
-  transition: filter 300ms;
-}
-.logo:hover {
-  filter: drop-shadow(0 0 2em #646cffaa);
-}
-.logo.react:hover {
-  filter: drop-shadow(0 0 2em #61dafbaa);
+.App {
+  width: 100%;
+  height: 100%;
+  position: relative;
 }
 
-@keyframes logo-spin {
-  from {
-    transform: rotate(0deg);
+/* Mobile-first responsive adjustments */
+@media (max-width: 768px) {
+  /* Dashboard panel adjustments for tablets/phones */
+  .dashboard-panel {
+    width: calc(100vw - 40px) !important;
+    max-width: 300px !important;
+    font-size: 0.9em;
   }
-  to {
-    transform: rotate(360deg);
-  }
-}
-
-@media (prefers-reduced-motion: no-preference) {
-  a:nth-of-type(2) .logo {
-    animation: logo-spin infinite 20s linear;
+  
+  .info-panel {
+    width: calc(100vw - 40px) !important;
+    max-width: 280px !important;
+    top: auto !important;
+    bottom: 20px !important;
+    right: 20px !important;
+    max-height: 40vh !important;
   }
 }
 
-.card {
-  padding: 2em;
+@media (max-width: 480px) {
+  /* Small phones */
+  .dashboard-panel {
+    width: calc(100vw - 20px) !important;
+    left: 10px !important;
+    top: 10px !important;
+    padding: 12px !important;
+    font-size: 0.85em;
+  }
+  
+  .info-panel {
+    width: calc(100vw - 20px) !important;
+    left: 10px !important;
+    right: 10px !important;
+    bottom: 10px !important;
+    max-height: 35vh !important;
+    padding: 12px !important;
+  }
+  
+  /* Hide some elements on very small screens */
+  .hide-mobile {
+    display: none !important;
+  }
 }
 
-.read-the-docs {
-  color: #888;
+/* Touch-friendly buttons */
+@media (pointer: coarse) {
+  button {
+    min-height: 44px;
+    min-width: 44px;
+  }
+  
+  select, input {
+    min-height: 44px;
+    font-size: 16px !important; /* Prevents iOS zoom on focus */
+  }
 }
+

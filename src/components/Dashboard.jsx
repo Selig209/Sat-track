@@ -5,7 +5,7 @@ import { getInfo } from '../data/satelliteInfo';
 import { reverseGeocode } from '../utils/reverseGeocode';
 import * as satellite from 'satellite.js';
 
-const Dashboard = ({ selectedSat, setSelectedSat, satellites, satMetadata = {}, onFilterVisible }) => {
+const Dashboard = ({ selectedSat, setSelectedSat, satellites, satMetadata = {}, onFilterVisible, isLoading, onRetryLoad }) => {
     const [passInfo, setPassInfo] = useState(null);
     const [weather, setWeather] = useState(null);
     const [userLocation, setUserLocation] = useState({ lat: 5.6037, lng: -0.1870, name: 'Detecting location...' });
@@ -186,23 +186,104 @@ const Dashboard = ({ selectedSat, setSelectedSat, satellites, satMetadata = {}, 
         return matchesSearch && matchesFilter;
     }).slice(0, 15) : []; // Show top 15 matches for better visibility
 
+    // Detect if mobile/tablet
+    const [isMobile, setIsMobile] = useState(window.innerWidth <= 768);
+    const [menuOpen, setMenuOpen] = useState(false);
+    
+    useEffect(() => {
+        const handleResize = () => {
+            const mobile = window.innerWidth <= 768;
+            setIsMobile(mobile);
+            if (!mobile) setMenuOpen(false); // Reset menu on desktop
+        };
+        window.addEventListener('resize', handleResize);
+        return () => window.removeEventListener('resize', handleResize);
+    }, []);
+
+    // Close menu when satellite is selected on mobile
+    useEffect(() => {
+        if (isMobile && selectedSat) {
+            setMenuOpen(false);
+        }
+    }, [selectedSat, isMobile]);
+
     return (
         <>
-        {/* Main Dashboard Panel - Left Side */}
+        {/* Mobile Hamburger Button */}
+        {isMobile && (
+            <button
+                onClick={() => setMenuOpen(!menuOpen)}
+                style={{
+                    position: 'absolute',
+                    top: '15px',
+                    left: '15px',
+                    zIndex: 300,
+                    background: 'rgba(0, 0, 0, 0.8)',
+                    border: '1px solid #333',
+                    borderRadius: '8px',
+                    padding: '12px',
+                    cursor: 'pointer',
+                    display: 'flex',
+                    flexDirection: 'column',
+                    gap: '4px',
+                    pointerEvents: 'auto'
+                }}
+            >
+                <span style={{ width: '20px', height: '2px', background: menuOpen ? '#00ff00' : 'white', transition: 'all 0.2s' }}></span>
+                <span style={{ width: '20px', height: '2px', background: menuOpen ? '#00ff00' : 'white', transition: 'all 0.2s' }}></span>
+                <span style={{ width: '20px', height: '2px', background: menuOpen ? '#00ff00' : 'white', transition: 'all 0.2s' }}></span>
+            </button>
+        )}
+
+        {/* Mobile: Visible count badge (always shown) */}
+        {isMobile && !menuOpen && (
+            <div 
+                onClick={() => setShowOnlyAboveMe(!showOnlyAboveMe)}
+                style={{
+                    position: 'absolute',
+                    top: '15px',
+                    right: '15px',
+                    zIndex: 200,
+                    background: showOnlyAboveMe ? 'rgba(0, 255, 0, 0.2)' : 'rgba(0, 0, 0, 0.8)',
+                    border: showOnlyAboveMe ? '2px solid #00ff00' : '1px solid #333',
+                    borderRadius: '20px',
+                    padding: '8px 14px',
+                    color: showOnlyAboveMe ? '#00ff00' : 'white',
+                    fontFamily: 'monospace',
+                    fontSize: '0.9em',
+                    cursor: 'pointer',
+                    pointerEvents: 'auto'
+                }}
+            >
+                🛰️ {visibleCount} visible
+            </div>
+        )}
+
+        {/* Main Dashboard Panel - Left Side (Hidden on mobile unless menu open) */}
         <div style={{
             position: 'absolute',
-            top: '20px',
-            left: '20px',
+            top: isMobile ? '0' : '20px',
+            left: isMobile ? '0' : '20px',
             color: 'white',
             fontFamily: 'Arial, sans-serif',
-            pointerEvents: 'none'
+            pointerEvents: 'none',
+            zIndex: 150,
+            display: isMobile && !menuOpen ? 'none' : 'block',
+            width: isMobile ? '100%' : 'auto',
+            height: isMobile ? '100%' : 'auto',
+            background: isMobile ? 'rgba(0, 0, 0, 0.7)' : 'transparent'
         }}>
-            <div style={{
-                background: 'rgba(0, 0, 0, 0.8)',
-                padding: '20px',
-                borderRadius: '10px',
-                width: '300px',
-                pointerEvents: 'auto'
+            <div className="dashboard-panel" style={{
+                background: 'rgba(0, 0, 0, 0.95)',
+                padding: isMobile ? '60px 20px 20px 20px' : '20px',
+                borderRadius: isMobile ? '0' : '10px',
+                width: isMobile ? '280px' : '300px',
+                maxWidth: '320px',
+                pointerEvents: 'auto',
+                height: isMobile ? '100vh' : 'auto',
+                maxHeight: isMobile ? '100vh' : 'none',
+                overflowY: 'auto',
+                boxSizing: 'border-box'
             }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '15px' }}>
                     <img src="/logo.png" alt="Logo" style={{ width: '30px', borderRadius: '6px' }} onError={(e) => e.target.style.display = 'none'} />
@@ -267,14 +348,15 @@ const Dashboard = ({ selectedSat, setSelectedSat, satellites, satMetadata = {}, 
                                 key={type}
                                 onClick={() => jumpToSatellite(type)}
                                 style={{
-                                    padding: '6px 10px',
-                                    fontSize: '0.8em',
+                                    padding: isMobile ? '8px 12px' : '6px 10px',
+                                    fontSize: isMobile ? '0.85em' : '0.8em',
                                     background: filterType === type ? '#0066cc' : '#333',
                                     border: filterType === type ? '1px solid #00aaff' : '1px solid #555',
                                     borderRadius: '4px',
                                     color: 'white',
                                     cursor: 'pointer',
-                                    transition: 'all 0.2s'
+                                    transition: 'all 0.2s',
+                                    minHeight: isMobile ? '40px' : 'auto'
                                 }}
                             >
                                 {icon} {label}
@@ -292,13 +374,14 @@ const Dashboard = ({ selectedSat, setSelectedSat, satellites, satMetadata = {}, 
                         onChange={(e) => setSearchTerm(e.target.value)}
                         style={{
                             width: '100%',
-                            padding: '10px',
+                            padding: isMobile ? '12px' : '10px',
                             borderRadius: '5px',
                             border: '1px solid #555',
                             background: '#222',
                             color: 'white',
-                            fontSize: '0.9em',
-                            boxSizing: 'border-box'
+                            fontSize: isMobile ? '16px' : '0.9em', // 16px prevents iOS zoom
+                            boxSizing: 'border-box',
+                            minHeight: isMobile ? '44px' : 'auto'
                         }}
                     />
                     
@@ -353,7 +436,9 @@ const Dashboard = ({ selectedSat, setSelectedSat, satellites, satMetadata = {}, 
                                     fontSize: '0.9em'
                                 }}
                             >
-                                <option value="">Select from {satellites ? satellites.length : 0} satellites...</option>
+                                <option value="">
+                                    {isLoading ? 'Loading satellites...' : `Select from ${satellites ? satellites.length : 0} satellites...`}
+                                </option>
                                 {satellites && satellites.slice(0, 50).map((sat, i) => (
                                     <option key={i} value={sat.name}>
                                         {sat.name}
@@ -363,6 +448,27 @@ const Dashboard = ({ selectedSat, setSelectedSat, satellites, satMetadata = {}, 
                                     <option disabled>... and {satellites.length - 50} more (use search)</option>
                                 )}
                             </select>
+                            
+                            {/* Show retry button if we have too few satellites */}
+                            {!isLoading && satellites && satellites.length < 100 && onRetryLoad && (
+                                <button
+                                    onClick={onRetryLoad}
+                                    style={{
+                                        marginTop: '8px',
+                                        padding: '8px 12px',
+                                        background: '#ff6b35',
+                                        border: 'none',
+                                        borderRadius: '5px',
+                                        color: 'white',
+                                        cursor: 'pointer',
+                                        fontSize: '0.85em',
+                                        width: '100%'
+                                    }}
+                                >
+                                    Only {satellites.length} loaded - Click to retry
+                                </button>
+                            )}
+                            
                             <div style={{ marginTop: '10px', fontSize: '0.8em' }}>
                                 <a href="https://www.n2yo.com/" target="_blank" rel="noreferrer" style={{ color: '#888' }}>Verify Data on N2YO</a>
                             </div>
@@ -389,34 +495,56 @@ const Dashboard = ({ selectedSat, setSelectedSat, satellites, satMetadata = {}, 
             </div>
         </div>
 
-            {/* Info Panel - Fixed Right Side */}
+            {/* Info Panel - Bottom Sheet Card on Mobile, Right Side on Desktop */}
             {selectedSat && (
-                <div style={{
-                    position: 'absolute',
-                    top: '20px',
-                    right: '20px',
-                    background: 'rgba(0, 0, 0, 0.9)',
-                    padding: '20px',
-                    borderRadius: '10px',
-                    width: '300px',
+                <div className="info-panel" style={{
+                    position: 'fixed',
+                    top: isMobile ? 'auto' : '20px',
+                    bottom: isMobile ? '0' : 'auto',
+                    right: isMobile ? '0' : '20px',
+                    left: isMobile ? '0' : 'auto',
+                    background: isMobile 
+                        ? 'linear-gradient(to top, rgba(0,0,0,0.98), rgba(0,0,0,0.95))' 
+                        : 'rgba(0, 0, 0, 0.95)',
+                    padding: isMobile ? '12px 16px 20px 16px' : '20px',
+                    borderRadius: isMobile ? '20px 20px 0 0' : '10px',
+                    width: isMobile ? '100%' : '300px',
+                    maxWidth: isMobile ? 'none' : '320px',
                     color: 'white',
                     fontFamily: 'Arial, sans-serif',
                     pointerEvents: 'auto',
-                    maxHeight: 'calc(100vh - 60px)',
-                    overflowY: 'auto'
+                    maxHeight: isMobile ? '50vh' : 'calc(100vh - 60px)',
+                    overflowY: 'auto',
+                    zIndex: 250,
+                    boxSizing: 'border-box',
+                    boxShadow: isMobile ? '0 -4px 20px rgba(0,0,0,0.5)' : 'none'
                 }}>
+                    {/* Drag handle indicator for mobile */}
+                    {isMobile && (
+                        <div style={{
+                            width: '40px',
+                            height: '4px',
+                            background: '#555',
+                            borderRadius: '2px',
+                            margin: '0 auto 12px auto'
+                        }} />
+                    )}
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                        <h3 style={{ marginTop: 0, color: '#00d2ff', flex: 1 }}>{selectedSat.name}</h3>
+                        <h3 style={{ marginTop: 0, color: '#00d2ff', flex: 1, fontSize: isMobile ? '1.1em' : '1em' }}>{selectedSat.name}</h3>
                         <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                            <span style={{ fontSize: '0.65em', color: '#666', background: '#333', padding: '2px 6px', borderRadius: '3px' }}>ESC</span>
+                            {!isMobile && <span style={{ fontSize: '0.65em', color: '#666', background: '#333', padding: '2px 6px', borderRadius: '3px' }}>ESC</span>}
                             <button 
                                 onClick={() => setSelectedSat(null)}
                                 style={{
-                                    background: 'transparent',
+                                    background: isMobile ? 'rgba(255,255,255,0.1)' : 'transparent',
                                     border: 'none',
                                     color: '#888',
-                                    fontSize: '1.2em',
-                                    cursor: 'pointer'
+                                    fontSize: isMobile ? '1.4em' : '1.2em',
+                                    cursor: 'pointer',
+                                    padding: isMobile ? '8px 12px' : '0',
+                                    borderRadius: '8px',
+                                    minWidth: isMobile ? '44px' : 'auto',
+                                    minHeight: isMobile ? '44px' : 'auto'
                                 }}
                             >✕</button>
                         </div>

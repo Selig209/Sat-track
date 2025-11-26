@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import SkyViewer from './components/SkyViewer';
 import Dashboard from './components/Dashboard';
 import { LOCAL_TLES } from './data/tleData';
@@ -8,6 +8,7 @@ import { fetchSatcatMetadata } from './utils/satcat';
 function App() {
   const [selectedSat, setSelectedSat] = useState(null);
   const [hoveredSat, setHoveredSat] = useState(null);
+  const [isLoading, setIsLoading] = useState(true);
   const [satellites, setSatellites] = useState([]);
   const [satMetadata, setSatMetadata] = useState({});
   const [highlightedSatellites, setHighlightedSatellites] = useState(null);
@@ -41,28 +42,45 @@ function App() {
     };
   });
 
-  useEffect(() => {
-    const loadSatellites = async () => {
-      console.log('[App] Loading satellites from CelesTrak...');
+  const loadSatellites = useCallback(async () => {
+    setIsLoading(true);
+    console.log('[App] Loading satellites from CelesTrak...');
 
+    // Try up to 3 times with delays between attempts
+    for (let attempt = 1; attempt <= 3; attempt++) {
       try {
+        console.log(`[App] Fetch attempt ${attempt}/3...`);
         const fetchedData = await fetchTLEs({ limit: 2000 });
-        if (fetchedData && fetchedData.length > 50) {
+        
+        if (fetchedData && fetchedData.length >= 100) {
           const enriched = withCatalogNumber(fetchedData);
-          console.log('[App] Loaded ' + enriched.length + ' satellites from remote feed');
+          console.log('[App] Successfully loaded ' + enriched.length + ' satellites');
           setSatellites(enriched);
-          return;
+          setIsLoading(false);
+          return; // Success!
         }
-
-        throw new Error('Remote feed returned too few satellites');
+        
+        console.warn(`[App] Attempt ${attempt} returned only ${fetchedData?.length || 0} satellites`);
       } catch (err) {
-        console.warn('[App] Remote fetch failed (' + err.message + '). Falling back to local snapshot.');
+        console.warn(`[App] Attempt ${attempt} failed: ${err.message}`);
       }
+      
+      // Wait before retry (1s, 2s, 3s)
+      if (attempt < 3) {
+        console.log(`[App] Waiting ${attempt}s before retry...`);
+        await new Promise(resolve => setTimeout(resolve, attempt * 1000));
+      }
+    }
 
-      setSatellites(withCatalogNumber([...LOCAL_TLES]));
-    };
-    loadSatellites();
+    // All attempts failed - use local fallback
+    console.warn('[App] All remote fetch attempts failed. Using local snapshot.');
+    setSatellites(withCatalogNumber([...LOCAL_TLES]));
+    setIsLoading(false);
   }, []);
+
+  useEffect(() => {
+    loadSatellites();
+  }, [loadSatellites]);
 
   useEffect(() => {
     if (!satellites || satellites.length === 0) {
@@ -124,6 +142,8 @@ function App() {
         satellites={satellites}
         satMetadata={satMetadata}
         onFilterVisible={handleFilterVisible}
+        isLoading={isLoading}
+        onRetryLoad={loadSatellites}
       />
     </div>
   );

@@ -1,22 +1,17 @@
 import axios from 'axios';
 
-// Sample TLE data as fallback if API fails
-const SAMPLE_TLES = `ISS (ZARYA)
-1 25544U 98067A   24325.50000000  .00012345  00000-0  12345-3 0  9992
-2 25544  51.6400 123.4567 0001234  12.3456  78.9012 15.54012345123456
-STARLINK-1007
-1 44713U 19074A   24325.50000000  .00001234  00000-0  12345-4 0  9997
-2 44713  53.0000 234.5678 0001234 123.4567 236.5432 15.06123456789012
-NOAA 19
-1 33591U 09005A   24325.50000000  .00000123  00000-0  12345-4 0  9998
-2 33591  99.1000 345.6789 0012345 234.5678 125.4321 14.12345678901234
-GPS BIIR-2  (PRN 13)
-1 24876U 97035A   24325.50000000 -.00000012  00000-0  00000-0 0  9999
-2 24876  55.5000  56.7890 0123456 123.4567 236.5432  2.00561234567890`;
+// CelesTrak API endpoints
+const CELESTRAK_GP_URL = 'https://celestrak.org/NORAD/elements/gp.php?GROUP=active&FORMAT=tle';
+const CELESTRAK_STATIONS_URL = 'https://celestrak.org/NORAD/elements/gp.php?GROUP=stations&FORMAT=tle';
 
-const CELESTRAK_URL = 'https://celestrak.org/NORAD/elements/gp.php?GROUP=active&FORMAT=tle';
-const PROXY_URL = 'https://corsproxy.io/?';
-const DEFAULT_LIMIT = 2000; // Balance between coverage and performance
+// Multiple CORS proxies for fallback
+const CORS_PROXIES = [
+    'https://corsproxy.io/?',
+    'https://api.allorigins.win/raw?url=',
+    'https://cors-anywhere.herokuapp.com/'
+];
+
+const DEFAULT_LIMIT = 2000;
 
 const extractCatalogNumber = (line1) => {
     if (!line1 || line1.length < 7) return null;
@@ -61,29 +56,46 @@ const parseTleLines = (lines, limit) => {
 export const fetchTLEs = async (options = {}) => {
     const { limit = DEFAULT_LIMIT } = options;
 
-    try {
-        console.log('[TLEFetcher] Fetching TLEs from CelesTrak via corsproxy.io...');
-        const response = await axios.get(PROXY_URL + encodeURIComponent(CELESTRAK_URL), {
-            timeout: 10000
-        });
-        console.log('[TLEFetcher] Response received, parsing TLE data...');
-        const lines = response.data.split(/\r?\n/);
-        const satellites = parseTleLines(lines, limit);
+    // Try each CORS proxy until one works
+    for (let proxyIndex = 0; proxyIndex < CORS_PROXIES.length; proxyIndex++) {
+        const proxy = CORS_PROXIES[proxyIndex];
+        
+        try {
+            console.log(`[TLEFetcher] Attempt ${proxyIndex + 1}/${CORS_PROXIES.length} - Using proxy: ${proxy.substring(0, 30)}...`);
+            
+            const response = await axios.get(proxy + encodeURIComponent(CELESTRAK_GP_URL), {
+                timeout: 15000,  // Increased timeout
+                headers: {
+                    'Accept': 'text/plain'
+                }
+            });
+            
+            // Check if we got valid data
+            if (!response.data || typeof response.data !== 'string') {
+                console.warn('[TLEFetcher] Invalid response data, trying next proxy...');
+                continue;
+            }
+            
+            console.log('[TLEFetcher] Response received, parsing TLE data...');
+            const lines = response.data.split(/\r?\n/).filter(line => line.trim());
+            const satellites = parseTleLines(lines, limit);
 
-        if (satellites.length === 0) {
-            throw new Error('No satellites parsed from response');
+            // Need at least 100 satellites for it to be considered successful
+            if (satellites.length < 100) {
+                console.warn(`[TLEFetcher] Only got ${satellites.length} satellites, trying next proxy...`);
+                continue;
+            }
+
+            console.log(`[TLEFetcher] Successfully parsed ${satellites.length} satellites`);
+            return satellites;
+            
+        } catch (error) {
+            console.warn(`[TLEFetcher] Proxy ${proxyIndex + 1} failed: ${error.message}`);
+            // Continue to next proxy
         }
-
-        console.log(`[TLEFetcher] Parsed ${satellites.length} satellites from remote feed`);
-        return satellites;
-    } catch (error) {
-        console.error('[TLEFetcher] Error fetching TLEs from CelesTrak:', error.message);
-        console.log('[TLEFetcher] Using bundled sample data as fallback.');
-
-        const lines = SAMPLE_TLES.split(/\r?\n/);
-        const satellites = parseTleLines(lines, limit);
-
-        console.log(`[TLEFetcher] Loaded ${satellites.length} sample satellites (ISS, Starlink, NOAA, GPS)`);
-        return satellites;
     }
+
+    // All proxies failed - return empty and let App.jsx use local fallback
+    console.error('[TLEFetcher] All CORS proxies failed');
+    throw new Error('All CORS proxies failed to fetch TLE data');
 };
