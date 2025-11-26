@@ -1,9 +1,86 @@
-import React, { useRef, useMemo } from 'react';
+import React, { useRef, useMemo, useState, Suspense } from 'react';
 import { Canvas, useFrame, useLoader } from '@react-three/fiber';
 import { OrbitControls, Stars } from '@react-three/drei';
 import { TextureLoader, Vector3 } from 'three';
 import * as THREE from 'three';
 import SatelliteLayer from './SatelliteLayer';
+
+// Detect mobile for performance optimizations
+const isMobile = typeof window !== 'undefined' && (
+    /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent) ||
+    window.innerWidth < 768
+);
+
+// Error Boundary for WebGL crashes
+class WebGLErrorBoundary extends React.Component {
+    constructor(props) {
+        super(props);
+        this.state = { hasError: false, error: null };
+    }
+
+    static getDerivedStateFromError(error) {
+        return { hasError: true, error };
+    }
+
+    componentDidCatch(error, errorInfo) {
+        console.error('WebGL Error:', error, errorInfo);
+    }
+
+    render() {
+        if (this.state.hasError) {
+            return (
+                <div style={{
+                    width: '100vw',
+                    height: '100vh',
+                    display: 'flex',
+                    flexDirection: 'column',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    background: '#0a0a1a',
+                    color: '#0ff',
+                    fontFamily: 'monospace',
+                    padding: '20px',
+                    textAlign: 'center'
+                }}>
+                    <h2>🛰️ Sat-Track</h2>
+                    <p style={{ color: '#ff6b6b' }}>3D rendering failed on this device</p>
+                    <p style={{ fontSize: '0.9em', color: '#888', maxWidth: '300px' }}>
+                        This may be due to WebGL limitations. Try:
+                    </p>
+                    <ul style={{ textAlign: 'left', color: '#888', fontSize: '0.85em' }}>
+                        <li>Refreshing the page</li>
+                        <li>Closing other browser tabs</li>
+                        <li>Using a desktop browser</li>
+                    </ul>
+                    <button
+                        onClick={() => window.location.reload()}
+                        style={{
+                            marginTop: '20px',
+                            padding: '10px 20px',
+                            background: '#0ff',
+                            color: '#000',
+                            border: 'none',
+                            borderRadius: '5px',
+                            cursor: 'pointer',
+                            fontFamily: 'monospace'
+                        }}
+                    >
+                        Reload Page
+                    </button>
+                </div>
+            );
+        }
+        return this.props.children;
+    }
+}
+
+// Loading fallback
+const LoadingFallback = () => (
+    <mesh>
+        <sphereGeometry args={[1, 16, 16]} />
+        <meshBasicMaterial color="#1a1a2e" wireframe />
+    </mesh>
+);
 
 // Custom Shader for Day/Night Cycle
 const EarthMaterial = {
@@ -45,6 +122,9 @@ const Earth = () => {
     const meshRef = useRef();
     const cloudsRef = useRef();
     const materialRef = useRef();
+    
+    // Reduce geometry complexity on mobile
+    const sphereDetail = isMobile ? 32 : 64;
 
     const [dayMap, nightMap, cloudsMap] = useLoader(TextureLoader, [
         '/textures/earth_day.jpg',
@@ -79,49 +159,67 @@ const Earth = () => {
     return (
         <group>
             <mesh ref={meshRef}>
-                <sphereGeometry args={[1, 64, 64]} />
+                <sphereGeometry args={[1, sphereDetail, sphereDetail]} />
                 <shaderMaterial ref={materialRef} args={[shaderArgs]} />
             </mesh>
-            <mesh ref={cloudsRef}>
-                <sphereGeometry args={[1.02, 64, 64]} />
-                <meshPhongMaterial
-                    map={cloudsMap}
-                    transparent={true}
-                    opacity={0.8}
-                    depthWrite={false}
-                    side={THREE.DoubleSide}
-                    blending={THREE.AdditiveBlending}
-                />
-            </mesh>
+            {/* Skip clouds on mobile to save memory */}
+            {!isMobile && (
+                <mesh ref={cloudsRef}>
+                    <sphereGeometry args={[1.02, sphereDetail, sphereDetail]} />
+                    <meshPhongMaterial
+                        map={cloudsMap}
+                        transparent={true}
+                        opacity={0.8}
+                        depthWrite={false}
+                        side={THREE.DoubleSide}
+                        blending={THREE.AdditiveBlending}
+                    />
+                </mesh>
+            )}
         </group>
     );
 };
 
 const SkyViewer = ({ selectedSat, setSelectedSat, hoveredSat, setHoveredSat, satellites, highlightedSatellites }) => {
     return (
-        <div style={{ width: '100vw', height: '100vh', position: 'relative' }}>
-            <Canvas camera={{ position: [0, 0, 4], fov: 50 }}>
-                <ambientLight intensity={0.1} />
-                <directionalLight position={[10, 10, 5]} intensity={1.5} />
-                <Stars radius={100} depth={50} count={5000} factor={4} saturation={0} fade speed={1} />
-                <Earth />
-                <SatelliteLayer
-                    selectedSat={selectedSat}
-                    setSelectedSat={setSelectedSat}
-                    setHoveredSat={setHoveredSat}
-                    satellites={satellites}
-                    highlightedSatellites={highlightedSatellites}
-                />
-                <OrbitControls 
-                    enablePan={true}
-                    panSpeed={0.8}
-                    rotateSpeed={0.6}
-                    zoomSpeed={1.2}
-                    minDistance={1.3}
-                    maxDistance={15}
-                    enableDamping={true}
-                    dampingFactor={0.05}
-                />
+        <WebGLErrorBoundary>
+            <div style={{ width: '100vw', height: '100vh', position: 'relative' }}>
+                <Canvas 
+                    camera={{ position: [0, 0, 4], fov: 50 }}
+                    gl={{ 
+                        antialias: !isMobile, // Disable antialiasing on mobile
+                        powerPreference: isMobile ? 'low-power' : 'high-performance',
+                        failIfMajorPerformanceCaveat: false
+                    }}
+                    dpr={isMobile ? [1, 1.5] : [1, 2]} // Lower resolution on mobile
+                    onCreated={({ gl }) => {
+                        // Log WebGL info for debugging
+                        console.log('WebGL Renderer:', gl.getContext().getParameter(gl.getContext().RENDERER));
+                    }}
+                >
+                    <Suspense fallback={<LoadingFallback />}>
+                        <ambientLight intensity={0.1} />
+                        <directionalLight position={[10, 10, 5]} intensity={1.5} />
+                        <Stars radius={100} depth={50} count={isMobile ? 2000 : 5000} factor={4} saturation={0} fade speed={1} />
+                        <Earth />
+                        <SatelliteLayer
+                            selectedSat={selectedSat}
+                            setSelectedSat={setSelectedSat}
+                            setHoveredSat={setHoveredSat}
+                            satellites={satellites}
+                            highlightedSatellites={highlightedSatellites}
+                        />
+                    </Suspense>
+                    <OrbitControls 
+                        enablePan={true}
+                        panSpeed={0.8}
+                        rotateSpeed={0.6}
+                        zoomSpeed={1.2}
+                        minDistance={1.3}
+                        maxDistance={15}
+                        enableDamping={!isMobile} // Disable damping on mobile for better performance
+                        dampingFactor={0.05}
+                    />
             </Canvas>
 
             {/* Tooltip Overlay */}
@@ -145,6 +243,7 @@ const SkyViewer = ({ selectedSat, setSelectedSat, hoveredSat, setHoveredSat, sat
                 </div>
             )}
         </div>
+        </WebGLErrorBoundary>
     );
 };
 

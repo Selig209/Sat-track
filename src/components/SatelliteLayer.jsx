@@ -4,13 +4,32 @@ import * as satellite from 'satellite.js';
 import * as THREE from 'three';
 import { Line } from '@react-three/drei';
 
+// Detect mobile for performance optimizations
+const isMobile = typeof window !== 'undefined' && (
+    /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent) ||
+    window.innerWidth < 768
+);
+
+// Limit satellites on mobile to prevent memory issues
+const MAX_SATELLITES_MOBILE = 500;
+
 const SatelliteLayer = ({ selectedSat, setSelectedSat, setHoveredSat, satellites, highlightedSatellites }) => {
     const meshRef = useRef();
     const glowRef = useRef();
     const [hoveredIndex, setHoveredIndex] = useState(null);
     const [orbitPath, setOrbitPath] = useState(null);
     
-    const satCount = satellites ? satellites.length : 0;
+    // Limit satellites on mobile
+    const limitedSatellites = useMemo(() => {
+        if (!satellites) return [];
+        if (isMobile && satellites.length > MAX_SATELLITES_MOBILE) {
+            console.log(`[Mobile] Limiting satellites from ${satellites.length} to ${MAX_SATELLITES_MOBILE}`);
+            return satellites.slice(0, MAX_SATELLITES_MOBILE);
+        }
+        return satellites;
+    }, [satellites]);
+    
+    const satCount = limitedSatellites.length;
 
     // Create a Set of highlighted satellite names for fast lookup
     const highlightedNames = useMemo(() => {
@@ -19,12 +38,12 @@ const SatelliteLayer = ({ selectedSat, setSelectedSat, setHoveredSat, satellites
     }, [highlightedSatellites]);
 
     const satRecords = useMemo(() => {
-        if (!satellites) return [];
-        return satellites.map((sat) => ({
+        if (!limitedSatellites || limitedSatellites.length === 0) return [];
+        return limitedSatellites.map((sat) => ({
             ...sat,
             satrec: satellite.twoline2satrec(sat.line1, sat.line2)
         }));
-    }, [satellites]);
+    }, [limitedSatellites]);
 
     // Satellite points - CYAN colored to distinguish from white stars
     const satelliteGeometry = useMemo(() => new THREE.SphereGeometry(0.008, 10, 10), []);
