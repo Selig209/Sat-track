@@ -126,11 +126,17 @@ const Earth = () => {
     // Reduce geometry complexity on mobile
     const sphereDetail = isMobile ? 32 : 64;
 
-    const [dayMap, nightMap, cloudsMap] = useLoader(TextureLoader, [
-        '/textures/earth_day.jpg',
-        '/textures/earth_night.jpg',
-        '/textures/earth_clouds.png',
-    ]);
+    // On mobile, only load the day texture (skip the 7MB night texture)
+    const texturePaths = isMobile 
+        ? ['/textures/earth_day.jpg']
+        : ['/textures/earth_day.jpg', '/textures/earth_night.jpg', '/textures/earth_clouds.png'];
+    
+    const textures = useLoader(TextureLoader, texturePaths);
+    
+    // Destructure based on platform
+    const dayMap = textures[0];
+    const nightMap = isMobile ? null : textures[1];
+    const cloudsMap = isMobile ? null : textures[2];
 
     // Earth rotation - fixed relative to satellites (satellites use geodetic coordinates)
     // The sun direction in the shader handles day/night visualization
@@ -149,7 +155,7 @@ const Earth = () => {
     const shaderArgs = useMemo(() => ({
         uniforms: {
             dayTexture: { value: dayMap },
-            nightTexture: { value: nightMap },
+            nightTexture: { value: nightMap || dayMap }, // Fallback to day texture on mobile
             sunDirection: { value: new Vector3(10, 10, 5).normalize() }
         },
         vertexShader: EarthMaterial.vertexShader,
@@ -160,10 +166,15 @@ const Earth = () => {
         <group>
             <mesh ref={meshRef}>
                 <sphereGeometry args={[1, sphereDetail, sphereDetail]} />
-                <shaderMaterial ref={materialRef} args={[shaderArgs]} />
+                {/* Use simple material on mobile, shader on desktop */}
+                {isMobile ? (
+                    <meshBasicMaterial map={dayMap} />
+                ) : (
+                    <shaderMaterial ref={materialRef} args={[shaderArgs]} />
+                )}
             </mesh>
             {/* Skip clouds on mobile to save memory */}
-            {!isMobile && (
+            {!isMobile && cloudsMap && (
                 <mesh ref={cloudsRef}>
                     <sphereGeometry args={[1.02, sphereDetail, sphereDetail]} />
                     <meshPhongMaterial
