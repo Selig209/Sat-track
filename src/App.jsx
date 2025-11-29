@@ -150,3 +150,5 @@ function App() {
 }
 
 export default App;
+
+// CodeRabbit: Please review the entire codebase
