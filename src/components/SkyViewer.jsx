@@ -131,12 +131,18 @@ const Earth = () => {
         ? ['/textures/earth_day.jpg']
         : ['/textures/earth_day.jpg', '/textures/earth_night.jpg', '/textures/earth_clouds.png'];
     
-    const textures = useLoader(TextureLoader, texturePaths);
-    
-    // Destructure based on platform
-    const dayMap = textures[0];
-    const nightMap = isMobile ? null : textures[1];
-    const cloudsMap = isMobile ? null : textures[2];
+    let dayMap = null;
+    let nightMap = null;
+    let cloudsMap = null;
+
+    try {
+        const textures = useLoader(TextureLoader, texturePaths);
+        dayMap = textures[0];
+        nightMap = isMobile ? null : textures[1];
+        cloudsMap = isMobile ? null : textures[2];
+    } catch (e) {
+        console.warn('Earth texture loading error:', e);
+    }
 
     // Earth rotation - fixed relative to satellites (satellites use geodetic coordinates)
     // The sun direction in the shader handles day/night visualization
@@ -166,9 +172,9 @@ const Earth = () => {
         <group>
             <mesh ref={meshRef}>
                 <sphereGeometry args={[1, sphereDetail, sphereDetail]} />
-                {/* Use simple material on mobile, shader on desktop */}
-                {isMobile ? (
-                    <meshBasicMaterial map={dayMap} />
+                {/* Use simple material if shader/textures fail or on mobile */}
+                {isMobile || !dayMap ? (
+                    <meshStandardMaterial map={dayMap} color={dayMap ? '#ffffff' : '#1e3a8a'} roughness={0.7} />
                 ) : (
                     <shaderMaterial ref={materialRef} args={[shaderArgs]} />
                 )}
