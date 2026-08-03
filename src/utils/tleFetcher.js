@@ -4,11 +4,11 @@ import axios from 'axios';
 const CELESTRAK_GP_URL = 'https://celestrak.org/NORAD/elements/gp.php?GROUP=active&FORMAT=tle';
 const CELESTRAK_STATIONS_URL = 'https://celestrak.org/NORAD/elements/gp.php?GROUP=stations&FORMAT=tle';
 
-// Multiple CORS proxies for fallback
+// Multiple CORS proxies for fallback (including direct fetch attempt first)
 const CORS_PROXIES = [
-    'https://corsproxy.io/?',
+    '', // Direct fetch attempt
     'https://api.allorigins.win/raw?url=',
-    'https://cors-anywhere.herokuapp.com/'
+    'https://corsproxy.io/?',
 ];
 
 const DEFAULT_LIMIT = 2000;
@@ -61,10 +61,11 @@ export const fetchTLEs = async (options = {}) => {
         const proxy = CORS_PROXIES[proxyIndex];
         
         try {
-            console.log(`[TLEFetcher] Attempt ${proxyIndex + 1}/${CORS_PROXIES.length} - Using proxy: ${proxy.substring(0, 30)}...`);
+            console.log(`[TLEFetcher] Attempt ${proxyIndex + 1}/${CORS_PROXIES.length} - Proxy: ${proxy || 'Direct'}`);
             
-            const response = await axios.get(proxy + encodeURIComponent(CELESTRAK_GP_URL), {
-                timeout: 15000,  // Increased timeout
+            const targetUrl = proxy ? proxy + encodeURIComponent(CELESTRAK_GP_URL) : CELESTRAK_GP_URL;
+            const response = await axios.get(targetUrl, {
+                timeout: 10000,
                 headers: {
                     'Accept': 'text/plain'
                 }

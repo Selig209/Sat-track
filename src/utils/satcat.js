@@ -4,7 +4,7 @@ import axios from 'axios';
 // Try the GP (General Perturbations) API which returns JSON with metadata
 const SATCAT_CSV_URL = 'https://celestrak.org/pub/satcat.csv';
 const GP_API_URL = 'https://celestrak.org/NORAD/elements/gp.php?GROUP=active&FORMAT=json';
-const PROXY_URL = 'https://corsproxy.io/?';
+const PROXIES = ['', 'https://api.allorigins.win/raw?url=', 'https://corsproxy.io/?'];
 
 let cachedMap = null;
 
